@@ -7,6 +7,7 @@ import sqlite3
 import plotly.graph_objs as go
 import pandas as pd
 import plotly
+import database as db
 
 app = dash.Dash()
 
@@ -46,7 +47,8 @@ def update_graph_scatter(term, ignore):
     try:
         conn = sqlite3.connect('C:\\Users\\Olive\\PycharmProjects\\hacklahoma\\twitter.db')
         c = conn.cursor()
-        df = pd.read_sql("SELECT * FROM sentiment WHERE tweet LIKE ? ORDER BY unix DESC LIMIT 1000", conn,
+        df = pd.read_sql("SELECT * FROM sentiment WHERE tweet LIKE ? ORDER BY unix DESC LIMIT 1000",
+                         conn,
                          params=('%' + term + '%',))
         df.sort_values('unix', inplace=True)
         df['sentiment_smoothed'] = df['sentiment'].rolling(int(len(df)/5)).mean()
@@ -77,10 +79,43 @@ def page_2_radios(value):
     return 'You have selected "{}"'.format(value)
 
 # Tab 3 callback -- JACOB
-@app.callback(Output('page-3-content', 'children'),
-              [Input('page-3-radios', 'value')])
-def page_3_radios(value):
-    return 'You have selected "{}"'.format(value)
+@app.callback(Output('box-graph', 'figure'),
+              [Input('candidate-dropdown', 'value'), Input('metric-dropdown', 'value')])
+def page_3_booyah(candidates, metric):
+    guys = list()
+    gals = list()
+    rule = list()
+    if candidates:
+        for i in candidates:
+            query = "SELECT " + str(metric) + " FROM Twitter_Metrics " + "WHERE [name] = '" + str(i) + "'"
+            the_goods = db.select_database(query)
+
+            guys.append(i)
+            gals.append(the_goods[metric].values[0])
+
+        data = plotly.graph_objs.Bar(
+            x=guys,
+            y=gals,
+            name='Bar'
+        )
+
+        return {'data': [data], 'layout': go.Layout(xaxis=dict(range=(0-1, len(guys))),
+                                                    yaxis=dict(range=[0, max(gals)]), )}
+
+    all_info_baby = {
+        'x': [],
+        'y': [],
+        'type': 'bar'
+    }
+    layout = {
+        'xaxis': {'title': 'Candidate'},
+        'yaxis': {'title': 'Y axis'},
+        'barmode': 'relative',
+        'title': metric
+    };
+    rule.append(all_info_baby)
+
+    return {'data': rule, 'layout': layout}
 
 # Tab 4 callback
 @app.callback(Output('page-4-content', 'children'),
