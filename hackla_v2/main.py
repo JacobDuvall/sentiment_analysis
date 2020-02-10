@@ -8,6 +8,7 @@ import plotly.graph_objs as go
 import pandas as pd
 import plotly
 import database as db
+import numpy as np
 
 app = dash.Dash()
 
@@ -124,10 +125,61 @@ def page_4_radios(value):
     return 'You have selected "{}"'.format(value)
 
 # Tab 5 callback
-@app.callback(Output('page-5-content', 'children'),
-              [Input('page-5-radios', 'value')])
-def page_5_radios(value):
-    return 'You have selected "{}"'.format(value)
+@app.callback(Output('line-graph', 'figure'),
+              [Input('candidate-dropdown', 'value')])
+def page_5_radios(candidates):
+    try:
+        lines = list()
+        if candidates:
+            print(candidates)
+            for i in candidates:
+                query = "SELECT sentiment_date, ((positive_tweet_count * 1.) / " \
+                        + "(positive_tweet_count + negative_tweet_count + neutral_tweet_count)) * 100. as score" \
+                        + " FROM Candidate_Sentiment" \
+                        + " WHERE name = '" \
+                        + str(i) \
+                        + "';"
+
+                dates = list()
+                score = list()
+
+                the_goods = db.select_database(query)
+
+                for index, row in the_goods.iterrows():
+                    dates.append(row['sentiment_date'])
+                    score.append(row['score'])
+                lines.append(plotly.graph_objs.Scatter(
+                    x=np.asarray(dates),
+                    y=np.asarray(score),
+                    name=i,
+                    mode='lines+markers'
+                    ))
+                print(lines)
+            data = lines
+            lines = list()
+            layout = dict(title='Candidate Sentiment By Date',
+                          xaxis=dict(title='Date'),
+                          yaxis=dict(title='Sentiment Score -- (0-100%)'),
+                          )
+
+            return {'data': data, 'layout': layout}
+        else:
+            data = {
+                'x': [],
+                'y': [],
+                'type': 'line'
+            }
+            layout = dict(title='Candidate Sentiment By Date',
+                          xaxis=dict(title='Date'),
+                          yaxis=dict(title='Sentiment Score -- (0-100%)'),
+                          )
+            return {'data': [data], 'layout': layout}
+
+    except Exception as e:
+        with open('errors.txt', 'a') as f:
+            f.write(str(e))
+            f.write('\n')
+
 
 
 
